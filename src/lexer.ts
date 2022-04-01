@@ -6,7 +6,8 @@ export enum TokenType {
 }
 
 export enum Opcode {
-	ASSIGN
+	ASSIGN,
+	END
 }
 
 export type Token = {
@@ -16,7 +17,10 @@ export type Token = {
 
 export type LexerOptions = {};
 
-export const operators = new Map<string, Opcode>([["=", Opcode.ASSIGN]]);
+export const operators = new Map<string, Opcode>([
+	["=", Opcode.ASSIGN],
+	[";", Opcode.END]
+]);
 
 export const tokenTypes: ((input: string) => Token | undefined)[] = [
 	// Numbers
