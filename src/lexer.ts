@@ -1,26 +1,37 @@
+import { Operator } from "./interfaces/operator.ts";
+
 export enum TokenType {
 	NUMBER,
 	OPERATOR,
 	PAREN,
-	VARIABLE
+	VARIABLE,
+	END
 }
 
 export enum Opcode {
 	ASSIGN,
-	END
+	FUNCTION
 }
 
 export type Token = {
 	type: TokenType;
-	value: string | number | Token[] | Opcode;
+	value?: string | number | Token[] | Opcode;
 };
-
-export type LexerOptions = {};
 
 export const operators = new Map<string, Opcode>([
 	["=", Opcode.ASSIGN],
-	[";", Opcode.END]
+	["$", Opcode.FUNCTION]
 ]);
+
+export class OperatorManager {
+	private operators: Map<(input: string) => boolean, Operator> = new Map();
+	public constructor() {}
+	public register(matcher: (input: string) => boolean, operator: Operator) {
+		if (this.operators.has(matcher))
+			throw new Error(`Operator already registered.`);
+		this.operators.set(matcher, operator);
+	}
+}
 
 export const tokenTypes: ((input: string) => Token | undefined)[] = [
 	// Numbers
@@ -51,16 +62,24 @@ export const tokenTypes: ((input: string) => Token | undefined)[] = [
 				value: operators.get(input)!
 			};
 		}
+	},
+	// End
+	(input: string) => {
+		if (input === ";") {
+			return {
+				type: TokenType.END
+			};
+		}
 	}
 ];
 
-export function lex(input: string[], options: LexerOptions = {}): Token[] {
-	const lexer = new Lexer(options);
+export function lex(input: string[], operators: OperatorManager): Token[] {
+	const lexer = new Lexer(operators);
 	return lexer.lex(input);
 }
 
 export class Lexer {
-	public constructor(private readonly _options: LexerOptions = {}) {}
+	public constructor(private readonly operators: OperatorManager) {}
 	public lex(input: (string | Token[])[]): Token[] {
 		if (input.includes("(")) {
 			const i = input.indexOf("(");
@@ -76,8 +95,8 @@ export class Lexer {
 					.concat(input.slice(j + 1))
 			);
 		}
-		let output: Token[] = [];
-		for (let i of input) {
+		const output: Token[] = [];
+		for (const i of input) {
 			if (typeof i === "string") {
 				output.push(this.translate(i));
 			} else if (i instanceof Array) {
@@ -90,7 +109,7 @@ export class Lexer {
 		return output;
 	}
 	public translate(input: string): Token {
-		for (let i of tokenTypes) {
+		for (const i of tokenTypes) {
 			const token = i(input);
 			if (token) {
 				return token;

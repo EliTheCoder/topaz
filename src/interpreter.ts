@@ -1,106 +1,76 @@
-import { Opcode, Token, TokenType } from "./lexer";
+import { Token, TokenType } from "./lexer.ts";
+import { Operator } from "./interfaces/operator.ts";
+import { TokenController } from "./interfaces/tokencontroller.ts";
 
-export function interpret(input: Token[]): void {
-	const interpreter = new Interpreter(input);
+export function interpret(
+	input: Token[],
+	tokenControllers: TokenControllerManager
+): void {
+	const interpreter = new Interpreter(input, tokenControllers);
 	interpreter.interpret();
 }
 
-export class Interpreter {
-	private _variables: Map<string, Token[]> = new Map();
-	private _index: number = 0;
-	private _opstack: [Opcode, number][] = [];
-	public constructor(private readonly _input: Token[]) {}
-	public interpret(): void {}
-	public step(): void {
-		const token = this._input[this._index];
-
-		this._index++;
+export class TokenControllerManager {
+	private tokenControllers: Map<TokenType, TokenController> = new Map();
+	public constructor() {}
+	public register(type: TokenType, operator: TokenController) {
+		if (this.tokenControllers.has(type))
+			throw new Error(`Operator already registered.`);
+		this.tokenControllers.set(type, operator);
 	}
-	public getIndex(): number {
-		return this._index;
-	}
-	public getPreviousToken(): Token {
-		return this._input[this._index - 1];
-	}
-	public getNextToken(): Token {
-		return this._input[this._index + 1];
-	}
-	public getToken(index: number): Token {
-		return this._input[index];
-	}
-	public getTokens(start: number, end: number): Token[] {
-		return this._input.slice(start, end);
-	}
-	public opstackPush(opcode: Opcode): void {
-		this._opstack.push([opcode, this._index]);
-	}
-	public opstackPop(): [Opcode, number] | undefined {
-		return this._opstack.pop();
-	}
-	public variableExists(name: string): boolean {
-		return this._variables.has(name);
-	}
-	public variableGet(name: string): Token[] | undefined {
-		return this._variables.get(name);
-	}
-	public variableSet(name: string, value: Token[]): void {
-		this._variables.set(name, value);
+	public get(type: TokenType): TokenController {
+		if (!this.tokenControllers.has(type))
+			throw new Error(`No token controller found for type ${type}.`);
+		return this.tokenControllers.get(type)!;
 	}
 }
 
-const tokenTypes: Map<
-	TokenType,
-	(input: Token, interpreter: Interpreter) => void
-> = new Map([
-	[
-		TokenType.OPERATOR,
-		(input: Token, interpreter: Interpreter) => {
-			const opCodes: Map<
-				Opcode,
-				(input: Token, interpreter: Interpreter) => void
-			> = new Map([
-				[
-					Opcode.ASSIGN,
-					(input: Token, interpreter: Interpreter) => {
-						interpreter.opstackPush(Opcode.ASSIGN);
-					}
-				],
-				[
-					Opcode.END,
-					(input: Token, interpreter: Interpreter) => {
-						const opstackTop = interpreter.opstackPop();
-						if (opstackTop === undefined) {
-							throw new Error(
-								`Unexpected END operator when opstack is empty.`
-							);
-						}
-						const [opcode, index] = opstackTop;
-						if (opcode === Opcode.ASSIGN) {
-							const variable = interpreter.getToken(index);
-							if (variable.type !== TokenType.VARIABLE)
-								throw new Error(
-									`Unexpected token type before ASSIGN operator.`
-								);
-
-							const value = interpreter.getTokens(
-								index + 1,
-								interpreter.getIndex()
-							);
-							interpreter.variableSet(
-								variable.value as string,
-								value
-							);
-						}
-					}
-				]
-			]);
-
-			if (!opCodes.has(input.value as Opcode))
-				throw new Error(`Unexpected operator.`);
-
-			opCodes.get(input.value as Opcode)!(input, interpreter);
+export class Interpreter {
+	private variables: Map<string, Token[]> = new Map();
+	private index = 0;
+	private opstack: Operator[] = [];
+	public constructor(
+		private readonly input: Token[],
+		private tokenControllers: TokenControllerManager
+	) {}
+	public interpret(): void {}
+	public step(): void {
+		const token = this.input[this.index];
+		this.tokenControllers.get(token.type).addToken(this, token, this.index);
+		for (const operator of this.opstack) {
+			operator.addToken(token, this.index);
 		}
-	],
-	[TokenType.VARIABLE, (input: Token, interpreter: Interpreter) => {}],
-	[TokenType.NUMBER, (input: Token, interpreter: Interpreter) => {}]
-]);
+
+		this.index++;
+	}
+	public getIndex(): number {
+		return this.index;
+	}
+	public getPreviousToken(): Token {
+		return this.input[this.index - 1];
+	}
+	public getNextToken(): Token {
+		return this.input[this.index + 1];
+	}
+	public getToken(index: number): Token {
+		return this.input[index];
+	}
+	public getTokens(start: number, end: number): Token[] {
+		return this.input.slice(start, end);
+	}
+	public opstackPush(operator: Operator): void {
+		this.opstack.push(operator);
+	}
+	public opstackPop(): Operator | undefined {
+		return this.opstack.pop();
+	}
+	public variableExists(name: string): boolean {
+		return this.variables.has(name);
+	}
+	public variableGet(name: string): Token[] | undefined {
+		return this.variables.get(name);
+	}
+	public variableSet(name: string, value: Token[]): void {
+		this.variables.set(name, value);
+	}
+}
