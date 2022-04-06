@@ -1,37 +1,17 @@
-import { Operator } from "./interfaces/operator.ts";
-
 export enum TokenType {
-	NUMBER,
-	OPERATOR,
-	PAREN,
-	VARIABLE,
-	END
-}
-
-export enum Opcode {
-	ASSIGN,
-	FUNCTION
+	NUMBER = "NUMBER",
+	VARIABLE = "VARIABLE",
+	START = "START",
+	END = "END",
+	ASSIGN = "ASSIGN",
+	FUNCTION = "FUNCTION",
+	ENDL = "ENDL"
 }
 
 export type Token = {
 	type: TokenType;
-	value?: string | number | Token[] | Opcode;
+	value?: string | number;
 };
-
-export const operators = new Map<string, Opcode>([
-	["=", Opcode.ASSIGN],
-	["$", Opcode.FUNCTION]
-]);
-
-export class OperatorManager {
-	private operators: Map<(input: string) => boolean, Operator> = new Map();
-	public constructor() {}
-	public register(matcher: (input: string) => boolean, operator: Operator) {
-		if (this.operators.has(matcher))
-			throw new Error(`Operator already registered.`);
-		this.operators.set(matcher, operator);
-	}
-}
 
 export const tokenTypes: ((input: string) => Token | undefined)[] = [
 	// Numbers
@@ -54,57 +34,38 @@ export const tokenTypes: ((input: string) => Token | undefined)[] = [
 			};
 		}
 	},
-	// Operators
+	// Assign
 	(input: string) => {
-		if (operators.has(input)) {
+		const match = input.match(/^=$/);
+		if (match) {
 			return {
-				type: TokenType.OPERATOR,
-				value: operators.get(input)!
+				type: TokenType.ASSIGN
 			};
 		}
 	},
 	// End
 	(input: string) => {
-		if (input === ";") {
+		const match = input.match(/[;)]/);
+		if (match) {
 			return {
-				type: TokenType.END
+				type: TokenType.END,
+				value: match[0]
 			};
 		}
 	}
 ];
 
-export function lex(input: string[], operators: OperatorManager): Token[] {
-	const lexer = new Lexer(operators);
+export function lex(input: string[]): Token[] {
+	const lexer = new Lexer();
 	return lexer.lex(input);
 }
 
 export class Lexer {
-	public constructor(private readonly operators: OperatorManager) {}
-	public lex(input: (string | Token[])[]): Token[] {
-		if (input.includes("(")) {
-			const i = input.indexOf("(");
-			let j = i;
-			while (input[j] !== ")") {
-				j++;
-			}
-
-			return this.lex(
-				input
-					.slice(0, i)
-					.concat(this.lex(input.slice(i + 1, j)))
-					.concat(input.slice(j + 1))
-			);
-		}
+	public constructor() {}
+	public lex(input: string[]): Token[] {
 		const output: Token[] = [];
 		for (const i of input) {
-			if (typeof i === "string") {
-				output.push(this.translate(i));
-			} else if (i instanceof Array) {
-				output.push({
-					type: TokenType.PAREN,
-					value: i
-				});
-			}
+			output.push(this.translate(i));
 		}
 		return output;
 	}
