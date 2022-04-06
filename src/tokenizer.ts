@@ -10,52 +10,52 @@ export function tokenize(input: string): UnlexedToken[] {
 }
 
 export class Tokenizer {
+	currentToken = "";
+	currentLine = 1;
+	currentColumn = 1;
 	public tokenize(input: string): UnlexedToken[] {
 		const output: UnlexedToken[] = [];
 		const text = input.split("");
-		let currentToken = "";
-		let currentLine = 1;
-		let currentColumn = 1;
 		for (let i = 0; i < text.length; i++) {
 			const char = text[i];
 			if ([" ", "\n", "\t", "\r"].includes(char)) {
-				if (currentToken.length > 0) {
+				if (this.currentToken.length > 0) {
 					output.push({
-						value: currentToken,
-						line: currentLine,
-						column: currentColumn - currentToken.length
+						value: this.currentToken,
+						line: this.currentLine,
+						column: this.currentColumn - this.currentToken.length
 					});
-					currentToken = "";
+					this.currentToken = "";
 				}
 				if (char === "\n") {
 					output.push({
 						value: "\n",
-						line: currentLine,
-						column: currentColumn
+						line: this.currentLine,
+						column: this.currentColumn
 					});
 				}
 			} else {
-				currentToken += char;
+				this.currentToken += char;
 			}
 			if (char === "\n") {
-				currentLine++;
-				currentColumn = 1;
+				this.currentLine++;
+				this.currentColumn = 1;
 			} else {
-				currentColumn++;
+				this.currentColumn++;
 			}
 		}
-		if (currentToken.length > 0) {
+		if (this.currentToken.length > 0) {
 			output.push({
-				value: currentToken,
-				line: currentLine,
-				column: currentColumn
+				value: this.currentToken,
+				line: this.currentLine,
+				column: this.currentColumn
 			});
 		}
 		if (output[output.length - 1].value !== "\n") {
 			output.push({
 				value: "\n",
-				line: currentLine,
-				column: currentColumn + 1
+				line: this.currentLine,
+				column: this.currentColumn + 1
 			});
 		}
 		return output;
