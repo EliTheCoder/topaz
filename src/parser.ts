@@ -15,22 +15,27 @@ export function parse(input: Token[]): AST {
 	return parser.parse(input);
 }
 
+enum OperationType {
+	ASSIGN,
+	FUNCTION,
+	APPLY
+}
+
 export class Parser {
 	expStack: Expression[] = [];
 	public parse(input: Token[]): AST {
 		const output: AST = [];
 		for (const i of input) {
-			if (i.type === TokenType.END) {
-				if (this.expStack.length > 0) {
-					const exp = this.expStack.pop();
-				}
+			if (i.type === TokenType.END || i.type === TokenType.ENDL) {
+				continue;
 			}
 			if (!operatorConfigs.has(i.type))
 				throw new Error(
 					`Invalid token ${i.type} at ${i.line}:${i.column}`
 				);
-			this.expStack.push(new Expression(i, operatorConfigs.get(i.type)));
+			this.expStack.push(new Expression(i, operatorConfigs.get(i.type)!));
 		}
+		console.log(this.expStack);
 		return output;
 	}
 }
@@ -59,9 +64,9 @@ class Expression {
 }
 
 const operatorConfigs: Map<TokenType, TokenType[]> = new Map([
-	[TokenType.ASSIGN, [TokenType.VARIABLE]],
-	[TokenType.FUNCTION, [TokenType.VARIABLE]],
-	[TokenType.NUMBER, []],
-	[TokenType.START, []],
-	[TokenType.VARIABLE, []]
+	[TokenType.ASSIGN, [TokenType.VARIABLE, TokenType.END]],
+	[TokenType.FUNCTION, [TokenType.VARIABLE, TokenType.END]],
+	[TokenType.NUMBER, [TokenType.VARIABLE]],
+	[TokenType.START, [TokenType.END]],
+	[TokenType.VARIABLE, [TokenType.VARIABLE]]
 ]);
